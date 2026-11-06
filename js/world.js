@@ -224,9 +224,11 @@ export function initWorld(canvas, shapeFns, opts = {}) {
   // ---------- estado ----------
   let cur = opts.initial ?? 0, next = cur, morphT = 1;
   bind(cur, cur);
-  const frame = { x: 0, y: 0, s: 1, tilt: 0.18, spin: 0.12, yaw: 0 };
+  // Encuadre: x = fracción del semiancho visible (−1 izquierda … 1 derecha), free = fracción del ancho
+  // libre para la figura, s = cuánto de ese espacio llena (1 = todo). Así el tamaño se adapta a la pantalla.
+  const frame = { x: 0, y: 0, s: 1, free: 0.5, tilt: 0.18, spin: 0.12, yaw: 0 };
   const frameTarget = { ...frame };
-  function setFrame(f) { Object.assign(frameTarget, { spin: 0.12, yaw: 0 }, f); if (opts.reducedMotion) Object.assign(frame, frameTarget); }
+  function setFrame(f) { Object.assign(frameTarget, { spin: 0.12, yaw: 0, free: 0.5, y: 0 }, f); if (opts.reducedMotion) Object.assign(frame, frameTarget); }
 
   function goTo(i, f) {
     i = Math.max(0, Math.min(S - 1, i));
@@ -263,9 +265,16 @@ export function initWorld(canvas, shapeFns, opts = {}) {
   // ---------- bucle ----------
   let raf = 0, last = performance.now(), time = 0, slow = 0, fast = 0;
   function render() {
-    const narrow = aspect < 0.9;
-    group.position.set(narrow ? 0 : frame.x, narrow ? frame.y + 0.95 : frame.y, 0);
-    group.scale.setScalar(frame.s * (narrow ? 0.62 : 1));
+    const halfH = 5.4 * Math.tan(THREE.MathUtils.degToRad(19)), halfW = halfH * aspect;
+    const R0 = 1.65;                                   // radio típico de las figuras
+    if (aspect < 0.9) {                                // vertical: figura arriba, panel abajo
+      group.position.set(0, halfH * 0.58 + frame.y, 0);
+      group.scale.setScalar(frame.s * Math.min(halfW * 0.92, halfH * 0.38) / R0);
+    } else {
+      const fit = Math.min(halfW * frame.free, halfH) * 0.94 / R0;
+      group.position.set(frame.x * halfW, frame.y, 0);
+      group.scale.setScalar(frame.s * fit);
+    }
     renderer.render(scene, camera);
   }
   function tick(now) {
@@ -286,7 +295,7 @@ export function initWorld(canvas, shapeFns, opts = {}) {
     const wTarget = morphT < 1 ? Math.sin(Math.PI * Math.min(1, morphT * 1.15)) : 0;
     uniforms.uWarp.value += (wTarget - uniforms.uWarp.value) * (1 - Math.pow(0.0005, dt));
     const k = 1 - Math.pow(0.04, dt);
-    for (const key of ["x", "y", "s", "tilt", "spin", "yaw"]) frame[key] += (frameTarget[key] - frame[key]) * k;
+    for (const key of ["x", "y", "s", "free", "tilt", "spin", "yaw"]) frame[key] += (frameTarget[key] - frame[key]) * k;
     if (frameTarget.spin > 0.001) group.rotation.y += dt * frame.spin;
     else {
       const TAU = Math.PI * 2, base = Math.round((group.rotation.y - frame.yaw) / TAU) * TAU;
