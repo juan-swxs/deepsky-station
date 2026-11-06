@@ -1,10 +1,12 @@
 // Mundo de fibras: motor WebGL que dibuja miles de fibras ópticas y las transforma
 // entre figuras. Cada cambio de capa es una "zambullida": las fibras se abren, la cámara
-// entra entre ellas y la nueva figura se arma. Todo el morph ocurre en la GPU.
+// entra entre ellas y la nueva figura se arma.
+// Rendimiento: cada figura vive en su propio buffer en la GPU (se sube una sola vez) y el
+// shader solo lee DOS figuras a la vez (origen y destino), que se intercambian por referencia.
 import * as THREE from "three";
 
-const N = 1700, K = 20;
-const MORPH = 2.0;
+const N = 1300, K = 16;
+const MORPH = 1.8;
 const BODY = new THREE.Color("#7d818d"), TIP = new THREE.Color("#ff8a2a");
 
 // ---------- utilidades deterministas ----------
@@ -14,7 +16,7 @@ const line = (a, b, rnd, jit = 0) => Array.from({ length: K }, (_, k) => {
   return [a[0] + (b[0] - a[0]) * t + (rnd() - 0.5) * 2 * jit * t, a[1] + (b[1] - a[1]) * t + (rnd() - 0.5) * 2 * jit * t, a[2] + (b[2] - a[2]) * t + (rnd() - 0.5) * 2 * jit * t];
 });
 
-// ---------- figuras base (las 4 originales) ----------
+// ---------- figuras base ----------
 export function shapeBurst(i, n, k, rnd) {
   const R = (a, b) => a + (b - a) * rnd();
   const u = R(-1, 1), ph = R(0, Math.PI * 2), s = Math.sqrt(1 - u * u);
@@ -60,56 +62,76 @@ export function shapeEarth(i, n, k, rnd) {
                      : line([c[0] + R(-s, s) * 0.4, c[1] - 0.06, c[2] + R(-s, s) * 0.4], [c[0] + R(-s, s) * 0.4, c[1] + 0.06, c[2] + R(-s, s) * 0.4], rnd);
 }
 
-// ---------- shaders ----------
-function shaders(nShapes) {
-  const attrs = Array.from({ length: nShapes }, (_, s) => `attribute vec3 aS${s};`).join("\n");
-  let pick = `vec3 pick(int i){ `;
-  for (let s = 0; s < nShapes - 1; s++) pick += `if(i==${s}) return aS${s}; `;
-  pick += `return aS${nShapes - 1}; }`;
-  const common = /* glsl */`
-    uniform float uTime, uMix, uWarp, uPx;
-    uniform int uFrom, uTo;
-    uniform vec2 uMouse; uniform float uMouseOn;
-    ${attrs}
-    attribute float aT, aSeed;
-    ${pick}
-    vec3 fibre(){
-      float m = clamp((uMix * 1.45) - aSeed * 0.45, 0.0, 1.0);
-      m = m * m * (3.0 - 2.0 * m);
-      vec3 p = mix(pick(uFrom), pick(uTo), m);
-      float swirl = sin(3.14159 * m) * (0.35 + 0.65 * aT);
-      p += swirl * vec3(sin(aSeed * 31.0 + aT * 4.0), cos(aSeed * 17.0 + aT * 3.0) * 0.6, sin(aSeed * 23.0 - aT * 5.0)) * 0.45;
-      // zambullida: las fibras se abren radialmente y vienen hacia la cámara
-      p *= 1.0 + uWarp * (0.6 + 1.6 * aSeed) * (0.4 + aT);
-      p.z += uWarp * (1.2 + 2.5 * aSeed);
-      float w = 0.018 + 0.05 * aT * aT;
-      p += w * vec3(sin(uTime * 0.9 + aSeed * 40.0 + aT * 3.0), cos(uTime * 0.7 + aSeed * 29.0 + aT * 2.0), sin(uTime * 0.8 + aSeed * 13.0 + aT * 4.0));
-      return p;
-    }
-    vec4 project(vec3 p){
-      vec4 mv = modelViewMatrix * vec4(p, 1.0);
-      vec4 cp = projectionMatrix * mv;
-      vec2 d = cp.xy / cp.w - uMouse;
-      float push = uMouseOn * smoothstep(0.38, 0.0, length(d * vec2(1.6, 1.0))) * (0.15 + 0.85 * aT) * 0.32;
-      mv.xy += normalize(d + 1e-5) * push;
-      return projectionMatrix * mv;
-    }`;
-  return {
-    lineVS: common + `varying float vT; void main(){ vT = aT; gl_Position = project(fibre()); }`,
-    lineFS: `uniform vec3 uBody, uTip; uniform float uWarp; varying float vT;
-      void main(){ vec3 c = mix(uBody, uTip, smoothstep(0.82, 1.0, vT) * 0.85);
-        float a = mix(0.04, 0.27, smoothstep(0.0, 0.9, vT)) * (1.0 - uWarp * 0.35); gl_FragColor = vec4(c, a); }`,
-    tipVS: common + `varying float vSeed; void main(){ vSeed = aSeed; vec4 c = project(fibre()); gl_Position = c;
-      gl_PointSize = uPx * (4.5 + 4.0 * fract(aSeed * 7.13)) * (3.2 / c.w); }`,
-    tipFS: `uniform vec3 uTip; uniform float uTime; varying float vSeed;
-      void main(){ vec2 q = gl_PointCoord - 0.5; float r = length(q); if (r > 0.5) discard;
-        float core = smoothstep(0.16, 0.0, r), halo = smoothstep(0.5, 0.0, r);
-        float flick = 0.75 + 0.25 * sin(uTime * 3.0 + vSeed * 50.0);
-        gl_FragColor = vec4(mix(uTip, vec3(1.0, 0.95, 0.82), core * 0.85), (halo * 0.22 + core * 0.9) * flick); }`,
-  };
+// Mapa: suelo en perspectiva con cuadrícula, anillos de alcance alrededor de la estación,
+// haz vertical del pin y tres pases de satélite que cruzan el cielo sobre ella.
+export function shapeMap(i, n, k, rnd) {
+  const R = (a, b) => a + (b - a) * rnd(), f = i / n;
+  const tilt = 1.05;                                   // inclinación del suelo (rad)
+  const G = (x, z, y = 0) => [x, y * Math.cos(tilt) - z * Math.sin(tilt) - 0.25, y * Math.sin(tilt) + z * Math.cos(tilt)];
+  const W = 1.7;
+  if (f < 0.26) {                                      // cuadrícula del suelo (meridianos/paralelos)
+    const horiz = rnd() < 0.5, c = Math.round(R(-W, W) / 0.34) * 0.34, a0 = R(-W, W - 0.9), sp = R(0.5, 0.9);
+    return Array.from({ length: K }, (_, q) => { const u = a0 + sp * q / (K - 1); return horiz ? G(u, c) : G(c, u); });
+  }
+  if (f < 0.56) {                                      // anillos de alcance (4) alrededor del pin
+    const ring = Math.floor(rnd() * 4), r = 0.32 + ring * 0.34, a0 = R(0, Math.PI * 2), sp = R(0.5, 0.95);
+    return Array.from({ length: K }, (_, q) => { const a = a0 + sp * q / (K - 1); return G(r * Math.cos(a), r * Math.sin(a), 0.01); });
+  }
+  if (f < 0.64) {                                      // pin: haz vertical que sube desde la estación
+    const a = R(0, Math.PI * 2), r = R(0, 0.035);
+    return line(G(r * Math.cos(a), r * Math.sin(a), 0), G(r * Math.cos(a) * 0.3, r * Math.sin(a) * 0.3, R(0.55, 0.75)), rnd);
+  }
+  if (f < 0.72) {                                      // rayos de alcance del pin hacia el anillo exterior
+    const a = Math.floor(rnd() * 12) / 12 * Math.PI * 2 + R(-0.02, 0.02);
+    return line(G(0.05 * Math.cos(a), 0.05 * Math.sin(a), 0.01), G(1.34 * Math.cos(a), 1.34 * Math.sin(a), 0.01), rnd);
+  }
+  // pases de satélite: arcos que cruzan sobre la estación (la punta naranja es el satélite)
+  const p = Math.floor(rnd() * 3), az = [0.35, 1.45, 2.5][p], h = [0.95, 0.7, 1.15][p];
+  const s0 = R(-1, 0.7), sp = R(0.18, 0.32);
+  return Array.from({ length: K }, (_, q) => {
+    const s = s0 + sp * q / (K - 1), x = 1.55 * s * Math.cos(az), z = 1.55 * s * Math.sin(az);
+    return G(x, z, h * (1 - s * s) + 0.02);
+  });
 }
 
-// Polvo de fondo: puntos lejanos que dan profundidad y se estiran en la zambullida
+// ---------- shaders: solo dos figuras por vértice ----------
+const common = /* glsl */`
+  uniform float uTime, uMix, uWarp, uPx;
+  uniform vec2 uMouse; uniform float uMouseOn;
+  attribute vec3 aFrom, aTo;
+  attribute float aT, aSeed;
+  vec3 fibre(){
+    float m = clamp((uMix * 1.45) - aSeed * 0.45, 0.0, 1.0);
+    m = m * m * (3.0 - 2.0 * m);
+    vec3 p = mix(aFrom, aTo, m);
+    float swirl = sin(3.14159 * m) * (0.35 + 0.65 * aT);
+    p += swirl * vec3(sin(aSeed * 31.0 + aT * 4.0), cos(aSeed * 17.0 + aT * 3.0) * 0.6, sin(aSeed * 23.0 - aT * 5.0)) * 0.45;
+    p *= 1.0 + uWarp * (0.6 + 1.6 * aSeed) * (0.4 + aT);           // zambullida
+    p.z += uWarp * (1.2 + 2.5 * aSeed);
+    float w = 0.018 + 0.05 * aT * aT;
+    p += w * vec3(sin(uTime * 0.9 + aSeed * 40.0 + aT * 3.0), cos(uTime * 0.7 + aSeed * 29.0 + aT * 2.0), sin(uTime * 0.8 + aSeed * 13.0 + aT * 4.0));
+    return p;
+  }
+  vec4 project(vec3 p){
+    vec4 mv = modelViewMatrix * vec4(p, 1.0);
+    vec4 cp = projectionMatrix * mv;
+    vec2 d = cp.xy / cp.w - uMouse;
+    float push = uMouseOn * smoothstep(0.38, 0.0, length(d * vec2(1.6, 1.0))) * (0.15 + 0.85 * aT) * 0.32;
+    mv.xy += normalize(d + 1e-5) * push;
+    return projectionMatrix * mv;
+  }`;
+const lineVS = common + `varying float vT; void main(){ vT = aT; gl_Position = project(fibre()); }`;
+const lineFS = `uniform vec3 uBody, uTip; uniform float uWarp; varying float vT;
+  void main(){ vec3 c = mix(uBody, uTip, smoothstep(0.82, 1.0, vT) * 0.85);
+    float a = mix(0.05, 0.3, smoothstep(0.0, 0.9, vT)) * (1.0 - uWarp * 0.35); gl_FragColor = vec4(c, a); }`;
+const tipVS = common + `varying float vSeed; void main(){ vSeed = aSeed; vec4 c = project(fibre()); gl_Position = c;
+  gl_PointSize = uPx * (4.5 + 4.0 * fract(aSeed * 7.13)) * (3.2 / c.w); }`;
+const tipFS = `uniform vec3 uTip; uniform float uTime; varying float vSeed;
+  void main(){ vec2 q = gl_PointCoord - 0.5; float r = length(q); if (r > 0.5) discard;
+    float core = smoothstep(0.16, 0.0, r), halo = smoothstep(0.5, 0.0, r);
+    float flick = 0.75 + 0.25 * sin(uTime * 3.0 + vSeed * 50.0);
+    gl_FragColor = vec4(mix(uTip, vec3(1.0, 0.95, 0.82), core * 0.85), (halo * 0.22 + core * 0.9) * flick); }`;
+
 const dustVS = /* glsl */`
   uniform float uTime, uWarp, uPx; attribute float aSeed; varying float vA;
   void main(){
@@ -120,8 +142,7 @@ const dustVS = /* glsl */`
     vA = smoothstep(-10.0, -6.0, p.z) * (1.0 - smoothstep(2.0, 3.6, p.z));
     gl_PointSize = uPx * (1.2 + 2.2 * aSeed + uWarp * 5.0) * (4.0 / max(0.5, -mv.z));
   }`;
-const dustFS = /* glsl */`
-  uniform vec3 uCol; varying float vA;
+const dustFS = `uniform vec3 uCol; varying float vA;
   void main(){ float r = length(gl_PointCoord - 0.5); if (r > 0.5) discard; gl_FragColor = vec4(uCol, vA * 0.5 * smoothstep(0.5, 0.1, r)); }`;
 
 /**
@@ -139,74 +160,73 @@ export function initWorld(canvas, shapeFns, opts = {}) {
   const group = new THREE.Group();
   scene.add(group);
 
-  // ---------- geometría de fibras (una por figura en atributos) ----------
+  // ---------- figuras → un BufferAttribute por figura (para líneas y para puntas) ----------
   const rndSeeds = mulberry32(20261106);
   const seeds = Float32Array.from({ length: N }, () => rndSeeds());
-  const shapes = shapeFns.map((fn, s) => {
-    const rnd = mulberry32(1000 + s * 7919);
-    return Array.from({ length: N }, (_, i) => {
-      let pts = null;
-      try { pts = fn(i, N, K, rnd); } catch { pts = null; }
-      if (!Array.isArray(pts) || pts.length !== K || pts.some((p) => !p || p.some((v) => !Number.isFinite(v)))) pts = Array.from({ length: K }, () => [0, 0, 0]);
-      return pts;
-    });
-  });
   const segV = N * (K - 1) * 2;
-  const lineGeo = new THREE.BufferGeometry(), tipGeo = new THREE.BufferGeometry();
-  const SA = shapes.map(() => new Float32Array(segV * 3)), T = new Float32Array(segV), SD = new Float32Array(segV);
-  const tSA = shapes.map(() => new Float32Array(N * 3));
-  let v = 0;
-  for (let i = 0; i < N; i++) {
-    for (let k = 0; k < K - 1; k++) for (const kk of [k, k + 1]) {
-      for (let s = 0; s < S; s++) SA[s].set(shapes[s][i][kk], v * 3);
-      T[v] = kk / (K - 1); SD[v] = seeds[i]; v++;
-    }
-    for (let s = 0; s < S; s++) tSA[s].set(shapes[s][i][K - 1], i * 3);
-  }
-  lineGeo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(segV * 3), 3));
-  tipGeo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(N * 3), 3));
+  const lineAttr = [], tipAttr = [];
   for (let s = 0; s < S; s++) {
-    lineGeo.setAttribute("aS" + s, new THREE.BufferAttribute(SA[s], 3));
-    tipGeo.setAttribute("aS" + s, new THREE.BufferAttribute(tSA[s], 3));
+    const rnd = mulberry32(1000 + s * 7919);
+    const L = new Float32Array(segV * 3), P = new Float32Array(N * 3);
+    let v = 0;
+    for (let i = 0; i < N; i++) {
+      let pts = null;
+      try { pts = shapeFns[s](i, N, K, rnd); } catch { pts = null; }
+      if (!Array.isArray(pts) || pts.length !== K || pts.some((p) => !p || p.some((x) => !Number.isFinite(x)))) pts = Array.from({ length: K }, () => [0, 0, 0]);
+      for (let k = 0; k < K - 1; k++) { L.set(pts[k], v * 3); L.set(pts[k + 1], v * 3 + 3); v += 2; }
+      P.set(pts[K - 1], i * 3);
+    }
+    lineAttr.push(new THREE.BufferAttribute(L, 3));
+    tipAttr.push(new THREE.BufferAttribute(P, 3));
   }
+  const T = new Float32Array(segV), SD = new Float32Array(segV);
+  for (let i = 0, v = 0; i < N; i++) for (let k = 0; k < K - 1; k++) { T[v] = k / (K - 1); T[v + 1] = (k + 1) / (K - 1); SD[v] = SD[v + 1] = seeds[i]; v += 2; }
+
+  const lineGeo = new THREE.BufferGeometry(), tipGeo = new THREE.BufferGeometry();
+  lineGeo.setAttribute("position", lineAttr[0]);
+  tipGeo.setAttribute("position", tipAttr[0]);
   lineGeo.setAttribute("aT", new THREE.BufferAttribute(T, 1));
   lineGeo.setAttribute("aSeed", new THREE.BufferAttribute(SD, 1));
   tipGeo.setAttribute("aT", new THREE.BufferAttribute(new Float32Array(N).fill(1), 1));
   tipGeo.setAttribute("aSeed", new THREE.BufferAttribute(seeds, 1));
   const big = new THREE.Sphere(new THREE.Vector3(), 8);
   lineGeo.boundingSphere = big; tipGeo.boundingSphere = big;
+  function bind(from, to) {
+    lineGeo.setAttribute("aFrom", lineAttr[from]); lineGeo.setAttribute("aTo", lineAttr[to]);
+    tipGeo.setAttribute("aFrom", tipAttr[from]); tipGeo.setAttribute("aTo", tipAttr[to]);
+  }
 
   const uniforms = {
-    uTime: { value: 0 }, uMix: { value: 1 }, uWarp: { value: 0 }, uFrom: { value: 0 }, uTo: { value: 0 },
+    uTime: { value: 0 }, uMix: { value: 1 }, uWarp: { value: 0 },
     uMouse: { value: new THREE.Vector2(9, 9) }, uMouseOn: { value: 0 }, uPx: { value: 1 },
     uBody: { value: BODY }, uTip: { value: TIP },
   };
-  const sh = shaders(S);
   const mat = (vs, fs) => new THREE.ShaderMaterial({ uniforms, vertexShader: vs, fragmentShader: fs, transparent: true, depthWrite: false });
-  const lines = new THREE.LineSegments(lineGeo, mat(sh.lineVS, sh.lineFS));
-  const tips = new THREE.Points(tipGeo, mat(sh.tipVS, sh.tipFS));
+  const lines = new THREE.LineSegments(lineGeo, mat(lineVS, lineFS));
+  const tips = new THREE.Points(tipGeo, mat(tipVS, tipFS));
   group.add(lines, tips);
 
   // Polvo de fondo
-  const D = 900, dp = new Float32Array(D * 3), ds = new Float32Array(D);
+  const D = 520, dp = new Float32Array(D * 3), ds = new Float32Array(D);
   for (let i = 0; i < D; i++) { dp[i * 3] = (rndSeeds() - 0.5) * 16; dp[i * 3 + 1] = (rndSeeds() - 0.5) * 10; dp[i * 3 + 2] = rndSeeds() * 14 - 10; ds[i] = rndSeeds(); }
   const dustGeo = new THREE.BufferGeometry();
   dustGeo.setAttribute("position", new THREE.BufferAttribute(dp, 3));
   dustGeo.setAttribute("aSeed", new THREE.BufferAttribute(ds, 1));
   dustGeo.boundingSphere = new THREE.Sphere(new THREE.Vector3(), 30);
-  const dust = new THREE.Points(dustGeo, new THREE.ShaderMaterial({
+  scene.add(new THREE.Points(dustGeo, new THREE.ShaderMaterial({
     uniforms: { uTime: uniforms.uTime, uWarp: uniforms.uWarp, uPx: uniforms.uPx, uCol: { value: new THREE.Color("#5d6070") } },
     vertexShader: dustVS, fragmentShader: dustFS, transparent: true, depthWrite: false,
-  }));
-  scene.add(dust);
+  })));
+
+  // Sube todas las figuras a la GPU al inicio para que ninguna transición dé un tirón
+  for (let s = 0; s < S; s++) { bind(s, s); renderer.compile(scene, camera); renderer.render(scene, camera); }
 
   // ---------- estado ----------
   let cur = opts.initial ?? 0, next = cur, morphT = 1;
-  uniforms.uFrom.value = uniforms.uTo.value = cur;
-  // Encuadre por figura: desplazamiento (para dejar espacio al panel), escala y rotación base
-  let frame = { x: 0, y: 0, s: 1, tilt: 0.18, spin: 0.12, yaw: 0 };
+  bind(cur, cur);
+  const frame = { x: 0, y: 0, s: 1, tilt: 0.18, spin: 0.12, yaw: 0 };
   const frameTarget = { ...frame };
-  function setFrame(f) { Object.assign(frameTarget, f); if (opts.reducedMotion) Object.assign(frame, frameTarget); }
+  function setFrame(f) { Object.assign(frameTarget, { spin: 0.12, yaw: 0 }, f); if (opts.reducedMotion) Object.assign(frame, frameTarget); }
 
   function goTo(i, f) {
     i = Math.max(0, Math.min(S - 1, i));
@@ -215,65 +235,66 @@ export function initWorld(canvas, shapeFns, opts = {}) {
     cur = morphT < 0.5 ? cur : next;
     next = i;
     morphT = i === cur ? 1 : 0;
-    uniforms.uFrom.value = cur; uniforms.uTo.value = next; uniforms.uMix.value = morphT;
-    if (opts.reducedMotion) { cur = next; uniforms.uFrom.value = next; uniforms.uMix.value = 1; render(); opts.onArrive?.(next); }
+    bind(cur, next);
+    uniforms.uMix.value = morphT;
+    if (opts.reducedMotion) { cur = next; bind(cur, cur); uniforms.uMix.value = 1; render(); opts.onArrive?.(next); }
     else start();
   }
 
   // ---------- puntero ----------
   const mouse = new THREE.Vector2(9, 9), look = new THREE.Vector2(), ZERO = new THREE.Vector2();
   let mouseOn = 0;
-  const onMove = (e) => {
-    const r = canvas.getBoundingClientRect(), p = e.touches ? e.touches[0] : e;
-    mouse.set(((p.clientX - r.left) / r.width) * 2 - 1, -((p.clientY - r.top) / r.height) * 2 + 1); mouseOn = 1;
-  };
+  const onMove = (e) => { const r = canvas.getBoundingClientRect(); mouse.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1); mouseOn = 1; };
   const onLeave = () => (mouseOn = 0);
   window.addEventListener("pointermove", onMove, { passive: true });
   document.addEventListener("pointerleave", onLeave);
 
-  // ---------- tamaño ----------
-  let aspect = 1;
+  // ---------- tamaño y calidad adaptable ----------
+  let aspect = 1, quality = Math.min(devicePixelRatio, 1.5);
   function resize() {
-    const w = canvas.clientWidth || innerWidth, h = canvas.clientHeight || innerHeight, dpr = Math.min(devicePixelRatio, 2);
-    renderer.setPixelRatio(dpr); renderer.setSize(w, h, false);
+    const w = canvas.clientWidth || innerWidth, h = canvas.clientHeight || innerHeight;
+    renderer.setPixelRatio(quality); renderer.setSize(w, h, false);
     aspect = camera.aspect = w / h; camera.updateProjectionMatrix();
-    uniforms.uPx.value = dpr;
+    uniforms.uPx.value = quality;
     if (opts.reducedMotion) render();
   }
   const ro = new ResizeObserver(resize); ro.observe(canvas); resize();
 
   // ---------- bucle ----------
-  let raf = 0, last = performance.now(), time = 0;
+  let raf = 0, last = performance.now(), time = 0, slow = 0, fast = 0;
   function render() {
     const narrow = aspect < 0.9;
-    group.position.set(narrow ? 0 : frame.x, narrow ? frame.y + 0.75 : frame.y, 0);
-    group.scale.setScalar(frame.s * (narrow ? 0.66 : 1));
+    group.position.set(narrow ? 0 : frame.x, narrow ? frame.y + 0.95 : frame.y, 0);
+    group.scale.setScalar(frame.s * (narrow ? 0.62 : 1));
     renderer.render(scene, camera);
   }
   function tick(now) {
     if (document.hidden) { raf = 0; return; }
     raf = requestAnimationFrame(tick);
-    const dt = Math.min(0.05, (now - last) / 1000); last = now; time += dt;
+    const raw = now - last, dt = Math.min(0.05, raw / 1000); last = now; time += dt;
+    // Si el equipo no alcanza ~45 fps sostenidos, baja la resolución; si sobra, la sube
+    if (raw > 22) { slow++; fast = 0; } else { fast++; slow = Math.max(0, slow - 1); }
+    if (slow > 45 && quality > 0.75) { quality = Math.max(0.75, quality - 0.25); slow = 0; resize(); }
+    else if (fast > 600 && quality < Math.min(devicePixelRatio, 1.5)) { quality = Math.min(Math.min(devicePixelRatio, 1.5), quality + 0.25); fast = 0; resize(); }
+
     uniforms.uTime.value = time;
     if (morphT < 1) {
       morphT = Math.min(1, morphT + dt / MORPH);
       uniforms.uMix.value = morphT;
-      if (morphT >= 1) { cur = next; uniforms.uFrom.value = cur; opts.onArrive?.(cur); }
+      if (morphT >= 1) { cur = next; bind(cur, cur); opts.onArrive?.(cur); }
     }
-    // zambullida: pico a mitad de la transición
     const wTarget = morphT < 1 ? Math.sin(Math.PI * Math.min(1, morphT * 1.15)) : 0;
-    uniforms.uWarp.value += (wTarget - uniforms.uWarp.value) * 0.12;
-    const k = 1 - Math.pow(0.04, dt);                     // suavizado del encuadre
-    for (const key of ["x", "y", "s", "tilt", "spin", "yaw"]) frame[key] += ((frameTarget[key] ?? 0) - frame[key]) * k;
-    if ((frameTarget.spin ?? 0.12) > 0.001) group.rotation.y += dt * frame.spin;
-    else {                                              // figura de frente con un leve vaivén
+    uniforms.uWarp.value += (wTarget - uniforms.uWarp.value) * (1 - Math.pow(0.0005, dt));
+    const k = 1 - Math.pow(0.04, dt);
+    for (const key of ["x", "y", "s", "tilt", "spin", "yaw"]) frame[key] += (frameTarget[key] - frame[key]) * k;
+    if (frameTarget.spin > 0.001) group.rotation.y += dt * frame.spin;
+    else {
       const TAU = Math.PI * 2, base = Math.round((group.rotation.y - frame.yaw) / TAU) * TAU;
-      const goal = base + frame.yaw + Math.sin(time * 0.35) * 0.18;
-      group.rotation.y += (goal - group.rotation.y) * (1 - Math.pow(0.08, dt));
+      group.rotation.y += (base + frame.yaw + Math.sin(time * 0.35) * 0.16 - group.rotation.y) * (1 - Math.pow(0.08, dt));
     }
-    group.rotation.x = frame.tilt + Math.sin(time * 0.25) * 0.05;
-    look.lerp(mouseOn ? mouse : ZERO, 0.04);
-    camera.position.set(look.x * 0.35, 0.15 + look.y * 0.22, 5.4 - uniforms.uWarp.value * 2.0);
+    group.rotation.x = frame.tilt + Math.sin(time * 0.25) * 0.04;
+    look.lerp(mouseOn ? mouse : ZERO, 1 - Math.pow(0.08, dt));
+    camera.position.set(look.x * 0.3, 0.15 + look.y * 0.18, 5.4 - uniforms.uWarp.value * 2.0);
     camera.lookAt(group.position.x * 0.3, group.position.y * 0.3, 0);
     uniforms.uMouse.value.lerp(mouse, 0.25);
     uniforms.uMouseOn.value += ((mouseOn ? 1 : 0) - uniforms.uMouseOn.value) * 0.08;
