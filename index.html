@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>DeepSky Station · TinyGS</title>
+<meta name="description" content="Estación terrena TinyGS DeepSky_Station en Nemocón, Cundinamarca: recepción de satélites LoRa y FSK en 433 MHz.">
+<link rel="icon" href="assets/img/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="css/style.css">
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+
+<header class="topbar">
+  <a class="brand" href="#presentacion" aria-label="Inicio">
+    <svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="3.2"/><path d="M16 4v6M16 22v6M4 16h6M22 16h6" /><path d="M8.5 8.5l3.6 3.6M19.9 19.9l3.6 3.6M23.5 8.5l-3.6 3.6M12.1 19.9l-3.6 3.6" class="dim"/></svg>
+    <span>DeepSky<br><small>Station</small></span>
+  </a>
+  <nav class="pill" aria-label="Secciones">
+    <a href="#presentacion">Presentación</a>
+    <a href="#coordenadas">Coordenadas</a>
+    <a href="#arquitectura">Arquitectura</a>
+    <a href="#montaje">Montaje</a>
+    <a href="#mapa">Mapa</a>
+  </nav>
+  <a class="cta" id="cta-top" href="#" target="_blank" rel="noopener">
+    Ver en TinyGS <span class="cta-dot" aria-hidden="true">→</span>
+  </a>
+</header>
+
+<!-- ============ PRESENTACIÓN ============ -->
+<section id="presentacion" class="hero">
+  <canvas id="hero-canvas" aria-hidden="true"></canvas>
+  <div class="hero-left">
+    <p class="eyebrow"><span class="live" aria-hidden="true"></span> Estación terrena · 433 MHz · Nemocón</p>
+    <h1>Escuchando<br>satélites desde<br><em>la sabana.</em></h1>
+    <p class="lead">DeepSky_Station es una estación terrena de la red abierta <strong>TinyGS</strong>: una antena, una placa ESP32 con radio LoRa y una carcasa diseñada a medida, que reciben paquetes de satélites en órbita baja y los comparten con el mundo.</p>
+    <div class="phases" role="tablist" aria-label="Figuras de la animación">
+      <button role="tab" data-phase="0">01 · Señal</button>
+      <button role="tab" data-phase="1" aria-selected="true">02 · Satélite</button>
+      <button role="tab" data-phase="2">03 · Antena</button>
+      <button role="tab" data-phase="3">04 · Tierra</button>
+    </div>
+  </div>
+  <aside class="hero-right" aria-label="La estación en números">
+    <dl class="ticker">
+      <div><dt>Paquetes confirmados</dt><dd data-count="1200">1200</dd></div>
+      <div><dt>Telemetría decodificada</dt><dd data-count="298">298</dd></div>
+      <div><dt>Récord de distancia</dt><dd><span data-count="3238.9" data-dec="1">3.238,9</span> km</dd></div>
+      <div><dt>Banda</dt><dd>400–437 MHz</dd></div>
+      <div><dt>Estado</dt><dd class="ok">● Online</dd></div>
+    </dl>
+    <p class="asof mono">Datos de app.tinygs.com · 6 nov 2026</p>
+  </aside>
+  <a class="scroll-hint" href="#coordenadas">Bajar <span aria-hidden="true">↓</span></a>
+</section>
+
+<!-- ============ COORDENADAS ============ -->
+<section id="coordenadas" class="section">
+  <div class="section-head">
+    <p class="num mono">01</p>
+    <h2>Coordenadas</h2>
+    <p class="sub">Dónde está la estación. La red publica la posición con tres decimales (≈ 100 m), suficiente para calcular los pases de cada satélite sin exponer la casa exacta.</p>
+  </div>
+  <div class="coords">
+    <article class="coord big">
+      <h3>Latitud</h3>
+      <p class="val mono">5.067° <span>N</span></p>
+      <p class="alt mono">5° 04′ 01″ N</p>
+    </article>
+    <article class="coord big">
+      <h3>Longitud</h3>
+      <p class="val mono">73.880° <span>W</span></p>
+      <p class="alt mono">73° 52′ 48″ W · −73.880</p>
+    </article>
+    <article class="coord">
+      <h3>Elevación del terreno</h3>
+      <p class="val mono">2579 <span>m s. n. m.</span></p>
+      <p class="alt">Calculada por TinyGS a partir de la posición.</p>
+    </article>
+    <article class="coord" id="altura-card">
+      <h3>Antena al suelo</h3>
+      <p class="val mono" id="altura-val">—</p>
+      <p class="alt" id="altura-nota"></p>
+    </article>
+    <article class="coord">
+      <h3>Localizador QTH</h3>
+      <p class="val mono">FJ35bb</p>
+      <p class="alt">Cuadrícula Maidenhead que usan los radioaficionados.</p>
+    </article>
+    <article class="coord">
+      <h3>Ubicación</h3>
+      <p class="val small">Nemocón, Cundinamarca, Colombia</p>
+      <p class="alt mono">Zona horaria America/Bogota (UTC−5)</p>
+    </article>
+  </div>
+</section>
+
+<!-- ============ ARQUITECTURA ============ -->
+<section id="arquitectura" class="section">
+  <div class="section-head">
+    <p class="num mono">02</p>
+    <h2>Arquitectura</h2>
+    <p class="sub">El camino de un paquete: sale de un satélite a 500–600 km de altura, llega por radio a la antena, la placa lo demodula y lo envía por internet a la red TinyGS.</p>
+  </div>
+
+  <ol class="chain" aria-label="Cadena de recepción">
+    <li><span class="k mono">RF</span><h3>Satélite</h3><p>Tianqi, SD-1, SNUGLITE, Polytech… transmiten en LoRa y FSK entre 400 y 437 MHz.</p></li>
+    <li><span class="k mono">3 dBi</span><h3>Antena ground-plane</h3><p>HYS 433 MHz, omnidireccional, varilla de ¼ de onda y 4 radiales.</p></li>
+    <li><span class="k mono">50 Ω</span><h3>Cable</h3><p>RG58 de 3 m + pigtail u.FL → SMA hembra fijado en la carcasa.</p></li>
+    <li><span class="k mono">SX1262</span><h3>Radio LoRa</h3><p>Escucha el satélite que indica el servidor y mide RSSI, SNR y Doppler.</p></li>
+    <li><span class="k mono">ESP32-S3</span><h3>Heltec LoRa32 V3</h3><p>Firmware TinyGS, pantalla OLED, panel web local y WiFi 2,4 GHz.</p></li>
+    <li><span class="k mono">MQTT</span><h3>Red TinyGS</h3><p>mqtt.tinygs.com:8883 (TLS). Decodifica, confirma y publica cada paquete.</p></li>
+  </ol>
+
+  <div class="viewer-wrap">
+    <div class="viewer-copy">
+      <p class="eyebrow">Carcasa a medida · SolidWorks</p>
+      <h3>Una caja pensada para esta placa</h3>
+      <p>Dos conchas de 75 × 75 × 20 mm que se atornillan con 4 M3. Por dentro, rieles para las regletas de pines, bahía para una LiPo opcional y el SMA de la antena arriba a la derecha. Por fuera, ventana para el OLED, botones flexibles PRG/RST y el logo grabado.</p>
+      <label class="slider">
+        <span>Despiece</span>
+        <input type="range" id="explode" min="0" max="1" step="0.01" value="0" aria-label="Separar las piezas de la carcasa">
+      </label>
+      <div class="viewer-btns">
+        <button data-view="front">Frente</button>
+        <button data-view="back">Atrás</button>
+        <button data-view="iso">3/4</button>
+      </div>
+      <ul class="specs mono">
+        <li><b>75 × 75 × 20,4</b> mm</li>
+        <li><b>4 × M3×16</b> tornillos</li>
+        <li><b>±0,4</b> mm holgura de la placa</li>
+        <li><b>PETG</b> negro mate</li>
+      </ul>
+    </div>
+    <div class="viewer">
+      <canvas id="case-canvas" aria-label="Modelo 3D de la carcasa con la placa y la antena; arrastra para girar"></canvas>
+      <p class="viewer-hint mono">Arrastra para girar · rueda para acercar</p>
+      <p class="viewer-loading mono" id="viewer-loading">Cargando modelo 3D…</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ MONTAJE ============ -->
+<section id="montaje" class="section">
+  <div class="section-head">
+    <p class="num mono">03</p>
+    <h2>Cómo se montó</h2>
+    <p class="sub">De una lista de compras a recibir el primer satélite, en una semana.</p>
+  </div>
+  <ol class="steps">
+    <li class="step">
+      <div class="step-txt">
+        <p class="mono when">Paso 1 · Componentes</p>
+        <h3>La lista de materiales</h3>
+        <p>Placa HiLetgo LoRa32 V3 (ESP32-S3 + SX1262, 433–510 MHz), antena HYS 433 MHz de 3 dBi con 3 m de cable RG58 y un pigtail u.FL → SMA. Se escogió la versión con SX1262 porque su oscilador compensado en temperatura deriva menos y recibe mejor los satélites FSK.</p>
+      </div>
+      <figure class="step-fig chips mono"><span>ESP32-S3</span><span>SX1262</span><span>433 MHz</span><span>RG58 3 m</span><span>u.FL→SMA</span><span>3 dBi</span></figure>
+    </li>
+    <li class="step">
+      <div class="step-txt">
+        <p class="mono when">Paso 2 · Firmware y red</p>
+        <h3>Configuración de la estación</h3>
+        <p>Se cargó el firmware de TinyGS desde el navegador, se configuró por el punto de acceso de la placa (192.168.4.1) con el WiFi, la posición, la zona horaria y las credenciales MQTT del bot de Telegram, y se dejó la transmisión (TX) desactivada: la estación solo escucha.</p>
+      </div>
+      <figure class="step-fig console mono" aria-label="Fragmento de la consola de la estación">
+<pre>00:08:34 Connected to MQTT!
+00:58:17 [SX1262] RSSI: -117 dBm  SNR: -10 dB
+00:58:17 Packet (100 bytes): EB FC 40 10 9A B7 F9…
+<b>→ Tianqi · reloj del satélite: 2026-10-30 00:58:17</b></pre>
+      </figure>
+    </li>
+    <li class="step">
+      <div class="step-txt">
+        <p class="mono when">Paso 3 · Diseño</p>
+        <h3>Carcasa en SolidWorks</h3>
+        <p>La carcasa se modeló alrededor del modelo 3D oficial de la Heltec V3, con las regletas de pines incluidas, y se verificó sin interferencias antes de imprimir. La base y la tapa se generan desde un script paramétrico, así que cambiar una medida es cambiar un número.</p>
+      </div>
+      <figure class="step-fig"><img src="assets/img/render_despiece.png" alt="Despiece de la carcasa: concha trasera, placa Heltec con regletas y tapa frontal con ventana del OLED y logo" loading="lazy" width="1600" height="1200"></figure>
+    </li>
+    <li class="step">
+      <div class="step-txt">
+        <p class="mono when">Paso 4 · Antena</p>
+        <h3>La antena, al aire libre</h3>
+        <p id="montaje-texto"></p>
+        <p class="note" id="altura-montaje"></p>
+      </div>
+      <figure class="step-fig photo"><img src="assets/img/antena_estacion.jpg" alt="Antena ground-plane de 433 MHz instalada en exterior contra el cielo, con sus cuatro radiales" loading="lazy" width="1204" height="1600"><figcaption class="mono">Foto de la estación en app.tinygs.com</figcaption></figure>
+    </li>
+    <li class="step">
+      <div class="step-txt">
+        <p class="mono when">Paso 5 · Resultados</p>
+        <h3>El primer satélite</h3>
+        <p>Los primeros paquetes válidos llegaron del satélite <b>Tianqi</b>, cada 15 segundos. Decodificando los bytes 4 a 7 apareció el reloj del satélite (segundos desde el 1 de enero de 2018 UTC), que coincide al segundo con la hora de recepción. En una semana la estación sumó 1200 paquetes confirmados y un récord de 3.238,9 km.</p>
+      </div>
+      <figure class="step-fig stats">
+        <div><b data-count="1200">1200</b><span>paquetes</span></div>
+        <div><b data-count="298">298</b><span>telemetría</span></div>
+        <div><b data-count="18">18</b><span>FSK</span></div>
+        <div><b>3.238,9</b><span>km récord</span></div>
+      </figure>
+    </li>
+  </ol>
+</section>
+
+<!-- ============ MAPA ============ -->
+<section id="mapa" class="section">
+  <div class="section-head">
+    <p class="num mono">04</p>
+    <h2>Mapa</h2>
+    <p class="sub">La estación en Nemocón y el círculo de su récord: un satélite recibido a 3.238,9 km. Toca los marcadores para ver las fotos.</p>
+  </div>
+  <div class="map-wrap">
+    <div id="map" aria-label="Mapa de la estación"></div>
+    <div class="map-tools">
+      <button data-layer="sat" aria-pressed="true">Satélite</button>
+      <button data-layer="osm" aria-pressed="false">Calles</button>
+      <button id="map-record">Ver récord</button>
+      <button id="map-home">Estación</button>
+    </div>
+  </div>
+</section>
+
+<!-- ============ LINK ============ -->
+<section id="link" class="section linkcard">
+  <div>
+    <p class="num mono">05</p>
+    <h2>Síguela en vivo</h2>
+    <p class="sub">Estado, satélite que está escuchando, paquetes y mapa en tiempo real en la consola pública de TinyGS.</p>
+    <a class="biglink" id="station-link" href="#" target="_blank" rel="noopener">
+      <span class="mono" id="station-link-text"></span>
+      <span class="cta-dot" aria-hidden="true">→</span>
+    </a>
+    <button class="copy mono" id="copy-link">Copiar link</button>
+  </div>
+  <div class="qr" id="qr" aria-label="Código QR del link de la estación"></div>
+</section>
+
+<footer class="foot">
+  <p>DeepSky_Station · Red <a href="https://tinygs.com" target="_blank" rel="noopener">TinyGS</a> · Nemocón, Colombia</p>
+  <p class="mono">Ingeniería Mecatrónica · UMNG · 2026</p>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

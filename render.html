@@ -1,0 +1,10 @@
+<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Render carcasa</title>
+<style>html,body{margin:0;height:100%;background:radial-gradient(120% 90% at 50% 22%,#e2e0ea,#c9c7d4 72%)}canvas{width:100vw;height:100vh;display:block}</style>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}</script>
+</head><body><canvas id="c"></canvas>
+<script type="module">
+import { initCaseViewer } from "./js/case-viewer.js";
+const q = new URLSearchParams(location.search);
+const v = initCaseViewer(document.getElementById("c"), { capture: true, pixelRatio: 1, view: q.get("view") || "iso" });
+v.ready.then(() => { v.setExplode(+(q.get("explode") || 0)); setTimeout(() => { v.renderOnce(); document.title = "listo"; }, 800); });
+</script></body></html>
