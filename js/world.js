@@ -164,7 +164,7 @@ export function initWorld(canvas, shapeFns, opts = {}) {
   const rndSeeds = mulberry32(20261106);
   const seeds = Float32Array.from({ length: N }, () => rndSeeds());
   const segV = N * (K - 1) * 2;
-  const lineAttr = [], tipAttr = [];
+  const lineAttr = [], tipAttr = [], shapeBounds = [];
   for (let s = 0; s < S; s++) {
     const rnd = mulberry32(1000 + s * 7919);
     const L = new Float32Array(segV * 3), P = new Float32Array(N * 3);
@@ -176,6 +176,14 @@ export function initWorld(canvas, shapeFns, opts = {}) {
       for (let k = 0; k < K - 1; k++) { L.set(pts[k], v * 3); L.set(pts[k + 1], v * 3 + 3); v += 2; }
       P.set(pts[K - 1], i * 3);
     }
+
+    // Mide la caja vertical y el radio horizontal con los vértices de las fibras (Codex).
+    const ys = [], radiiXZ = [];
+    for (let j = 0; j < L.length; j += 3) { ys.push(L[j + 1]); radiiXZ.push(Math.hypot(L[j], L[j + 2])); }
+    const percentile = (values, q) => { values.sort((a, b) => a - b); return values[Math.floor((values.length - 1) * q)]; };
+    const minY = percentile(ys, 0.01), maxY = percentile(ys, 0.99), radiusXZ = percentile(radiiXZ, 0.99);
+    shapeBounds.push({ centerY: (minY + maxY) / 2, halfHeight: Math.max((maxY - minY) / 2, 1e-6), radiusXZ: Math.max(radiusXZ, 1e-6) });
+
     lineAttr.push(new THREE.BufferAttribute(L, 3));
     tipAttr.push(new THREE.BufferAttribute(P, 3));
   }
@@ -266,14 +274,22 @@ export function initWorld(canvas, shapeFns, opts = {}) {
   let raf = 0, last = performance.now(), time = 0, slow = 0, fast = 0;
   function render() {
     const halfH = 5.4 * Math.tan(THREE.MathUtils.degToRad(19)), halfW = halfH * aspect;
-    const R0 = 1.65;                                   // radio típico de las figuras
+    const R0 = 1.65;                                   // radio típico: conserva el tamaño de las figuras redondas
+    // Caja de la figura (interpolada entre origen y destino para que el encuadre no salte) — Codex
+    const from = shapeBounds[cur] || shapeBounds[0], to = shapeBounds[next] || from;
+    const t = THREE.MathUtils.clamp(morphT, 0, 1);
+    const centerY = THREE.MathUtils.lerp(from.centerY, to.centerY, t);
+    const projHalfH = THREE.MathUtils.lerp(from.halfHeight, to.halfHeight, t) * 1.06;   // margen por la inclinación
+    const radiusXZ = THREE.MathUtils.lerp(from.radiusXZ, to.radiusXZ, t);
     if (aspect < 0.9) {                                // vertical: figura arriba, panel abajo
-      group.position.set(0, halfH * 0.58 + frame.y, 0);
-      group.scale.setScalar(frame.s * Math.min(halfW * 0.92, halfH * 0.38) / R0);
+      const fit = Math.min(frame.s * Math.min(halfW * 0.92, halfH * 0.38) / R0, halfH * 0.38 / projHalfH, halfW * 0.92 / radiusXZ);
+      group.scale.setScalar(fit);
+      group.position.set(0, halfH * 0.58 + frame.y - centerY * fit, 0);
     } else {
-      const fit = Math.min(halfW * frame.free, halfH) * 0.94 / R0;
-      group.position.set(frame.x * halfW, frame.y, 0);
-      group.scale.setScalar(frame.s * fit);
+      const fitRound = frame.s * Math.min(halfW * frame.free, halfH) * 0.94 / R0;
+      const fit = Math.min(fitRound, halfH * 0.88 / projHalfH, halfW * frame.free * 0.94 / radiusXZ);
+      group.scale.setScalar(fit);
+      group.position.set(frame.x * halfW, frame.y - centerY * fit, 0);
     }
     renderer.render(scene, camera);
   }
