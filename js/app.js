@@ -34,7 +34,7 @@ const F = {
   cadena: { x: -0.4, y: 0.03, s: 0.92, free: 0.6, tilt: 0.06, spin: 0, yaw: 0.35 },
   izq: { x: 0.4, y: 0, s: 1.15, free: 0.6, tilt: 0.16, spin: 0.12 },
   carcasa: { x: 0.4, y: 0, s: 1.12, free: 0.6, tilt: 0.22, spin: 0, yaw: -0.55 },
-  mapa: { x: -0.5, y: 0.04, s: 0.72, free: 0.48, tilt: 0.0, spin: 0, yaw: 0 },
+  mapa: { x: -0.62, y: 0.04, s: 0.72, free: 0.48, tilt: 0.0, spin: 0, yaw: 0 },
 };
 const LAYERS = [
   { id: "inicio", name: "Señal", shape: 0, frame: F.inicio },
