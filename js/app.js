@@ -29,19 +29,19 @@ const SH = [shapeBurst, shapeSatellite, shapeAntenna, shapeEarth,
 
 // Encuadre: x/y desplazan la figura para dejar espacio al panel; spin 0 = la figura se queda de frente
 const F = {
-  inicio: { x: 0.5, y: 0.0, s: 1.0, free: 0.5, tilt: 0.18, spin: 0.12 },
-  globo: { x: -0.5, y: 0.05, s: 0.98, free: 0.48, tilt: 0.05, spin: 0, yaw: 0 },
-  cadena: { x: -0.5, y: 0.04, s: 0.9, free: 0.48, tilt: 0.06, spin: 0, yaw: 0.35 },
-  izq: { x: 0.5, y: 0, s: 0.96, free: 0.48, tilt: 0.16, spin: 0.12 },
-  carcasa: { x: 0.5, y: 0, s: 1.0, free: 0.48, tilt: 0.22, spin: 0, yaw: -0.55 },
-  mapa: { x: -0.6, y: 0.05, s: 1.0, free: 0.38, tilt: 0.0, spin: 0, yaw: 0 },
+  inicio: { x: 0.5, y: 0.0, s: 1.05, free: 0.56, tilt: 0.18, spin: 0.12 },
+  globo: { x: -0.4, y: 0.04, s: 1.18, free: 0.6, tilt: 0.05, spin: 0, yaw: 0 },
+  cadena: { x: -0.4, y: 0.03, s: 0.92, free: 0.6, tilt: 0.06, spin: 0, yaw: 0.35 },
+  izq: { x: 0.4, y: 0, s: 1.15, free: 0.6, tilt: 0.16, spin: 0.12 },
+  carcasa: { x: 0.4, y: 0, s: 1.12, free: 0.6, tilt: 0.22, spin: 0, yaw: -0.55 },
+  mapa: { x: -0.5, y: 0.04, s: 1.15, free: 0.48, tilt: 0.0, spin: 0, yaw: 0 },
 };
 const LAYERS = [
   { id: "inicio", name: "Señal", shape: 0, frame: F.inicio },
   { id: "coordenadas", name: "Coordenadas", shape: 4, frame: F.globo },
   { id: "arquitectura", name: "Arquitectura", shape: 5, frame: F.cadena },
   { id: "montaje", name: "Montaje", steps: [
-      { shape: 5, frame: { ...F.cadena, x: 0.5, yaw: -0.35 } },   // componentes
+      { shape: 5, frame: { ...F.cadena, x: 0.4, yaw: -0.35 } },   // componentes
       { shape: 1, frame: F.izq },                                    // firmware: escuchando un satélite
       { shape: 6, frame: F.carcasa },                                // diseño de la carcasa
       { shape: 2, frame: F.izq },                                    // antena
