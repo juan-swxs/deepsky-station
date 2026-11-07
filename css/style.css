@@ -43,10 +43,11 @@ button { font: inherit; color: inherit; cursor: pointer; }
   position: fixed; inset: 0 0 auto 0; z-index: 40; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 12px;
   padding: calc(14px + env(safe-area-inset-top, 0px)) var(--gr) 10px var(--gl);
 }
-.brand { display: flex; align-items: center; gap: 10px; text-decoration: none; font: 600 14px/1.05 var(--f-display); }
+.brand { display: flex; align-items: center; gap: 10px; text-decoration: none; font: 600 18px/1 var(--f-display); letter-spacing: .01em; }
+.brand small { display: block; margin-top: 2px; font: 500 9.5px/1 var(--f-mono); letter-spacing: .18em; text-transform: uppercase; }
 .brand small { font-weight: 400; color: var(--ink-3); }
-.brand svg { width: 30px; height: 30px; fill: var(--accent); stroke: var(--ink); stroke-width: 1.6; stroke-linecap: round; }
-.brand svg .dim { stroke: var(--ink-3); }
+.brand svg { width: 40px; height: 40px; color: var(--ink); overflow: visible; }
+.brand svg .orb { opacity: .55; }
 .pill { display: flex; gap: 2px; padding: 5px; border-radius: 999px; background: var(--glass); border: 1px solid var(--line); }
 .pill a { text-decoration: none; font-size: 13px; padding: 6px 13px; border-radius: 999px; color: var(--ink-2); transition: background .3s, color .3s; }
 .pill a:hover { background: rgba(22,21,27,.07); }

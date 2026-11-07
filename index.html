@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Geist:wght@300;400;500;600&family=Geist+Mono:wght@400;500&display=swap">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
-<link rel="stylesheet" href="css/style.css?v=9">
+<link rel="stylesheet" href="css/style.css?v=10">
 <script type="importmap">
 { "imports": {
   "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
@@ -23,7 +23,7 @@
 
 <header class="topbar">
   <a class="brand" href="#inicio" data-go="0" aria-label="Ir al inicio">
-    <svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="3.2"/><path d="M16 4v6M16 22v6M4 16h6M22 16h6"/><path d="M8.5 8.5l3.6 3.6M19.9 19.9l3.6 3.6M23.5 8.5l-3.6 3.6M12.1 19.9l-3.6 3.6" class="dim"/></svg>
+    <svg viewBox="0 0 32 32" aria-hidden="true"><ellipse class="orb" cx="16" cy="16" rx="13.2" ry="5.4" transform="rotate(-28 16 16)" fill="none" stroke="currentColor" stroke-width="1" /><circle cx="16" cy="16" r="5.6" fill="var(--bg)" stroke="currentColor" stroke-width="1.3" /><circle cx="25.9" cy="8.7" r="1.9" fill="#ff8a2a" /></svg>
     <span>DeepSky<br><small>Station</small></span>
   </a>
   <nav class="pill" aria-label="Capas del mundo">
@@ -32,7 +32,7 @@
     <a href="#arquitectura" data-go="2">Arquitectura</a>
     <a href="#montaje" data-go="3">Montaje</a>
     <a href="#mapa" data-go="4">Mapa</a>
-    <a href="#link" data-go="5">En vivo</a>
+    <a href="#link" data-go="5">Enlace</a>
   </nav>
   <a class="cta" id="cta-top" href="#" target="_blank" rel="noopener">Ver en TinyGS <span class="cta-dot" aria-hidden="true">→</span></a>
 </header>
@@ -45,7 +45,7 @@
     <li><button data-go="2"><span class="mono">03</span><em>Arquitectura</em></button></li>
     <li><button data-go="3"><span class="mono">04</span><em>Montaje</em></button></li>
     <li><button data-go="4"><span class="mono">05</span><em>Mapa</em></button></li>
-    <li><button data-go="5"><span class="mono">06</span><em>En vivo</em></button></li>
+    <li><button data-go="5"><span class="mono">06</span><em>Enlace</em></button></li>
   </ol>
 </nav>
 
@@ -60,19 +60,18 @@
   <!-- 01 · PRESENTACIÓN -->
   <section class="layer" id="inicio" data-side="left" aria-labelledby="t-inicio">
     <div class="intro">
-      <p class="eyebrow"><span class="live" aria-hidden="true"></span> Red TinyGS · Nemocón, Cundinamarca · En línea</p>
+      <p class="eyebrow">Red TinyGS · Nemocón, Cundinamarca</p>
       <h1 id="t-inicio">Estación terrena<br><em>DeepSky</em></h1>
       <p class="lead">Estación de recepción satelital en 433 MHz de la red abierta <strong>TinyGS</strong>. Recibe paquetes LoRa y FSK de satélites en órbita baja mediante una antena ground-plane y un módulo Heltec LoRa32 V3 (ESP32-S3 + SX1262), y los publica en tiempo real.</p>
       <div class="intro-actions">
         <button class="enter" data-go="1">Explorar la estación <span class="cta-dot" aria-hidden="true">↓</span></button>
         <span class="mono band">433 MHz · LoRa / FSK</span>
       </div>
-      <dl class="kpis" aria-label="La estación en números">
-        <div><dt>paquetes confirmados</dt><dd class="mono" data-count="1200">1.200</dd></div>
-        <div><dt>telemetría decodificada</dt><dd class="mono" data-count="298">298</dd></div>
-        <div><dt>km de récord</dt><dd class="mono" data-count="3238.9" data-dec="1">3.238,9</dd></div>
+      <dl class="kpis" aria-label="Datos de la estación">
+        <div><dt>banda de recepción</dt><dd class="mono">433 MHz</dd></div>
+        <div><dt>antena sobre el suelo</dt><dd class="mono">4,47 m</dd></div>
+        <div><dt>sobre el nivel del mar</dt><dd class="mono">2.579 m</dd></div>
       </dl>
-      <p class="asof mono">Último registro: 6 nov 2026 · <button class="linklike" data-go="5">ver datos en vivo →</button></p>
       <div class="team" aria-label="Integrantes">
         <p class="mono team-h">Integrantes</p>
         <ul><li>Juan Sebastián Muñoz</li><li>Ángel Gordillo</li><li>Sergio Contreras</li></ul>
@@ -157,7 +156,7 @@
           <p class="when mono">Paso 5 · Resultados</p>
           <h3>El primer satélite</h3>
           <p>Los primeros paquetes válidos llegaron de <b>Tianqi</b>, cada 15 s. En los bytes 4 a 7 apareció el reloj del satélite (segundos desde el 1-ene-2018 UTC), que coincide al segundo con la hora de recepción.</p>
-          <div class="stats"><div><b>1.200</b><span>paquetes</span></div><div><b>298</b><span>telemetría</span></div><div><b>18</b><span>FSK</span></div><div><b>3.238,9</b><span>km récord</span></div></div>
+          <p class="chips mono"><span>Tianqi · LoRa</span><span>1 paquete cada 15 s</span><span>100 bytes</span><span>reloj sincronizado al segundo</span></p>
         </article>
       </div>
       <div class="step-arrows"><button data-step-prev aria-label="Paso anterior">←</button><span class="mono" id="step-count">1 / 5</span><button data-step-next aria-label="Paso siguiente">→</button></div>
@@ -168,30 +167,25 @@
   <section class="layer" id="mapa" data-side="right" aria-labelledby="t-mapa">
     <div class="glass panel wide">
       <p class="num mono">05 · Mapa</p>
-      <h2 id="t-mapa">Nemocón y su alcance</h2>
+      <h2 id="t-mapa">Nemocón, Cundinamarca</h2>
       <div class="map-wrap">
         <div id="map" aria-label="Mapa de la estación"></div>
         <div class="map-tools">
           <button data-layer="sat" aria-pressed="true">Satélite</button>
           <button data-layer="osm" aria-pressed="false">Calles</button>
-          <button id="map-record">Ver récord</button>
           <button id="map-home">Estación</button>
         </div>
       </div>
-      <p class="sub small">Toca los marcadores para ver las fotos. El círculo es el récord: un satélite recibido a 3.238,9 km.</p>
+      <p class="sub small">Toca los marcadores para ver las fotos de la antena y del gabinete.</p>
     </div>
   </section>
 
   <!-- 06 · LINK -->
   <section class="layer" id="link" data-side="left" aria-labelledby="t-link">
-    <div class="glass panel wide">
-      <p class="num mono">06 · En vivo</p>
-      <h2 id="t-link">La estación, en tiempo real</h2>
-      <p class="sub">Consola pública de TinyGS: estado, satélite que está escuchando, paquetes recibidos y seguimiento en vivo. Estos datos se actualizan solos.</p>
-      <div class="live-wrap">
-        <iframe id="live-frame" title="Consola en vivo de DeepSky_Station en TinyGS" loading="lazy" referrerpolicy="no-referrer"></iframe>
-        <p class="live-loading mono" id="live-loading">Conectando con TinyGS…</p>
-      </div>
+    <div class="glass panel">
+      <p class="num mono">06 · Enlace</p>
+      <h2 id="t-link">Consola de la estación</h2>
+      <p class="sub">Estado, satélite que está escuchando y paquetes recibidos se consultan en tiempo real en la consola pública de TinyGS.</p>
       <div class="linkrow">
         <div class="qr" id="qr" aria-label="Código QR del link de la estación"></div>
         <div class="linkcol">
@@ -223,6 +217,6 @@
 
 <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
-<script type="module" src="js/app.js?v=9"></script>
+<script type="module" src="js/app.js?v=10"></script>
 </body>
 </html>

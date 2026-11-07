@@ -3,7 +3,6 @@
 const CONFIG = {
   stationUrl: "https://app.tinygs.com/station/DeepSky_Station@YE6YyEiGKQeLknUc",
   lat: 5.067, lon: -73.88,
-  recordKm: 3238.9,
   alturaAntenaM: 4.47,               // altura de la antena sobre el suelo (m). null = "Por medir"
   alturaDetalle: "sobre una estructura de madera",
   montaje: "La antena ground-plane se ensambló y se instaló sobre una estructura de madera, a 4,47 m del suelo, en un punto " +
@@ -12,7 +11,7 @@ const CONFIG = {
 };
 // ===============================================================
 
-import { initWorld, shapeBurst, shapeSatellite, shapeAntenna, shapeEarth, shapeMap } from "./world.js?v=9";
+import { initWorld, shapeBurst, shapeSatellite, shapeAntenna, shapeEarth, shapeMap } from "./world.js?v=10";
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -23,7 +22,7 @@ if (capture) document.documentElement.classList.add("captura");
 
 // ---------- Figuras: 0 señal · 1 satélite · 2 antena · 3 Tierra · 4 globo+pin · 5 cadena · 6 carcasa · 7 terreno ----------
 let extra = {};
-try { extra = await import("./shapes-extra.js?v=9"); } catch (e) { console.warn("shapes-extra.js no disponible, uso figuras base", e); }
+try { extra = await import("./shapes-extra.js?v=10"); } catch (e) { console.warn("shapes-extra.js no disponible, uso figuras base", e); }
 const SH = [shapeBurst, shapeSatellite, shapeAntenna, shapeEarth,
   extra.shapeGlobePin || shapeEarth, extra.shapeChain || shapeSatellite, extra.shapeCase || shapeAntenna, shapeMap];
 
@@ -48,7 +47,7 @@ const LAYERS = [
       { shape: 3, frame: F.izq },                                    // resultados: la Tierra y su órbita
   ] },
   { id: "mapa", name: "Mapa", shape: 7, frame: F.mapa },
-  { id: "link", name: "En vivo", shape: 3, frame: { x: 0.62, y: 0.04, s: 0.78, free: 0.48, tilt: 0.16, spin: 0.12 } },
+  { id: "link", name: "Enlace", shape: 3, frame: F.izq },
 ];
 const MONTAJE = 3;
 
@@ -101,11 +100,7 @@ function showLayer(i, instant) {
   setTimeout(() => { if (layer === i) { s.classList.add("shown"); onShown(i); } }, delay);
 }
 function onShown(i) {
-  if (LAYERS[i].id === "mapa") initMap();
-  if (LAYERS[i].id === "link") {
-    const f = $("#live-frame");
-    if (!f.src) { f.src = CONFIG.stationUrl; f.addEventListener("load", () => $("#live-loading")?.remove(), { once: true }); }
-  }
+  if (LAYERS[i].id === "mapa") mapReady ? requestAnimationFrame(() => mapReady.invalidateSize({ pan: false })) : initMap();
   if (LAYERS[i].id === "inicio") $$("[data-count]", sections[i]).forEach(countUp);
 }
 function renderStep() {
@@ -201,7 +196,7 @@ $$("[data-open3d]").forEach((b) => b.addEventListener("click", async () => {
   modal.showModal();
   if (viewer) return;
   try {
-    const { initCaseViewer } = await import("./case-viewer.js?v=9");
+    const { initCaseViewer } = await import("./case-viewer.js?v=10");
     viewer = initCaseViewer($("#case-canvas"), { onReady: () => $("#viewer-loading")?.remove() });
     $("#explode").addEventListener("input", (e) => viewer.setExplode(+e.target.value));
     $$(".viewer-btns button").forEach((x) => x.addEventListener("click", () => {
@@ -227,17 +222,18 @@ function initMap() {
   L.marker(home, { icon: pin, title: "DeepSky_Station" }).addTo(map).bindPopup(`<div class="popup"><img src="assets/img/antena_estacion.jpg" alt="Antena de la estación"><b>DeepSky_Station</b>Nemocón · ${CONFIG.lat.toFixed(3)}, ${CONFIG.lon.toFixed(3)}<br>2579 m s. n. m. · QTH FJ35bb</div>`);
   L.marker([CONFIG.lat + 0.0012, CONFIG.lon - 0.0016], { icon: photo("assets/img/antena_estacion.jpg") }).addTo(map).bindPopup(`<div class="popup"><img src="assets/img/antena_estacion.jpg" alt="Antena ground-plane"><b>La antena</b>Ground-plane HYS 433 MHz, 3 dBi, 4 radiales a 45°.</div>`);
   L.marker([CONFIG.lat - 0.0012, CONFIG.lon + 0.0017], { icon: photo("assets/img/render_estuche.png") }).addTo(map).bindPopup(`<div class="popup"><img src="assets/img/render_estuche.png" alt="Render del gabinete"><b>El gabinete</b>Heltec LoRa32 V3 en el gabinete de 75 × 75 mm.</div>`);
-  const record = L.circle(home, { radius: CONFIG.recordKm * 1000, color: "#ff8a2a", weight: 2, fillColor: "#ff8a2a", fillOpacity: 0.06, dashArray: "6 8" }).addTo(map).bindTooltip(`Récord: ${fmt(CONFIG.recordKm, 1)} km`, { sticky: true });
   const toggle = (which) => {
     $$(".map-tools [data-layer]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.layer === which)));
     if (which === "sat") { map.removeLayer(osm); sat.addTo(map); } else { map.removeLayer(sat); osm.addTo(map); }
   };
   $$(".map-tools [data-layer]").forEach((b) => b.addEventListener("click", () => toggle(b.dataset.layer)));
-  $("#map-record").addEventListener("click", () => map.flyToBounds(record.getBounds(), { duration: reduced ? 0 : 1.6 }));
   $("#map-home").addEventListener("click", () => map.flyTo(home, 15, { duration: reduced ? 0 : 1.4 }));
   mapReady = map;
-  setTimeout(() => map.invalidateSize(), 300);
 }
 
 // ---------- Arranque ----------
 go(layer, step, true);
+// Prepara el mapa (y descarga sus teselas) en segundo plano, cuando el navegador esté libre,
+// para que entrar a la capa del mapa no interrumpa la animación.
+const idle = window.requestIdleCallback || ((f) => setTimeout(f, 1200));
+setTimeout(() => idle(() => { if (!mapReady) initMap(); }, { timeout: 4000 }), 1500);
