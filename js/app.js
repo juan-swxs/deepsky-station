@@ -11,7 +11,7 @@ const CONFIG = {
 };
 // ===============================================================
 
-import { initWorld, shapeBurst, shapeSatellite, shapeAntenna, shapeEarth, shapeMap } from "./world.js?v=10";
+import { initWorld, shapeBurst, shapeSatellite, shapeAntenna, shapeEarth, shapeMap } from "./world.js?v=11";
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -22,7 +22,7 @@ if (capture) document.documentElement.classList.add("captura");
 
 // ---------- Figuras: 0 señal · 1 satélite · 2 antena · 3 Tierra · 4 globo+pin · 5 cadena · 6 carcasa · 7 terreno ----------
 let extra = {};
-try { extra = await import("./shapes-extra.js?v=10"); } catch (e) { console.warn("shapes-extra.js no disponible, uso figuras base", e); }
+try { extra = await import("./shapes-extra.js?v=11"); } catch (e) { console.warn("shapes-extra.js no disponible, uso figuras base", e); }
 const SH = [shapeBurst, shapeSatellite, shapeAntenna, shapeEarth,
   extra.shapeGlobePin || shapeEarth, extra.shapeChain || shapeSatellite, extra.shapeCase || shapeAntenna, shapeMap];
 
@@ -196,7 +196,7 @@ $$("[data-open3d]").forEach((b) => b.addEventListener("click", async () => {
   modal.showModal();
   if (viewer) return;
   try {
-    const { initCaseViewer } = await import("./case-viewer.js?v=10");
+    const { initCaseViewer } = await import("./case-viewer.js?v=11");
     viewer = initCaseViewer($("#case-canvas"), { onReady: () => $("#viewer-loading")?.remove() });
     $("#explode").addEventListener("input", (e) => viewer.setExplode(+e.target.value));
     $$(".viewer-btns button").forEach((x) => x.addEventListener("click", () => {
