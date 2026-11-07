@@ -185,6 +185,17 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .pin { width: 22px; height: 22px; border-radius: 50%; background: var(--accent); border: 3px solid #fff; box-shadow: 0 0 0 6px rgba(255,138,42,.35), 0 4px 14px rgba(0,0,0,.35); }
 .pin-photo { width: 46px; height: 46px; border-radius: 12px; border: 3px solid #fff; box-shadow: 0 6px 18px rgba(0,0,0,.35); background-size: cover; background-position: center; }
 
+/* Integrantes */
+.team { margin-top: 26px; padding-top: 14px; border-top: 1px solid var(--line); max-width: 480px; }
+.team-h { margin: 0 0 6px; font-size: 11px; color: var(--accent-ink); text-transform: uppercase; letter-spacing: .08em; }
+.team ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 4px 18px; font-family: var(--f-display); font-size: 19px; }
+.linklike { border: 0; background: none; padding: 0; font: inherit; color: var(--accent-ink); text-decoration: underline; text-underline-offset: 2px; }
+
+/* En vivo (consola de TinyGS incrustada) */
+.live-wrap { position: relative; border-radius: 16px; overflow: hidden; border: 1px solid var(--line); background: #fff; margin-bottom: 16px; }
+#live-frame { display: block; width: 100%; height: min(50vh, 520px); border: 0; }
+.live-loading { position: absolute; inset: 0; display: grid; place-items: center; margin: 0; font-size: 12px; color: var(--ink-3); background: #fff; }
+
 /* Link */
 .linkrow { display: grid; grid-template-columns: 130px 1fr; gap: 16px; align-items: center; }
 .qr { background: #fff; padding: 9px; border-radius: 14px; width: 130px; height: 130px; }

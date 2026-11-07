@@ -4,15 +4,15 @@ const CONFIG = {
   stationUrl: "https://app.tinygs.com/station/DeepSky_Station@YE6YyEiGKQeLknUc",
   lat: 5.067, lon: -73.88,
   recordKm: 3238.9,
-  alturaAntenaM: null,               // altura de la antena sobre el suelo (m). null = "Por medir"
-  alturaDetalle: "",                 // p. ej. "en el techo de una casa de 2 pisos"
-  montaje: "La antena ground-plane se instaló al aire libre, en lo alto y con el cielo despejado, sujeta a un poste de madera. " +
-           "Su cable RG58 de 3 m baja hasta la placa, que queda bajo techo dentro de la carcasa, conectada por el pigtail u.FL → SMA. " +
-           "Los cuatro radiales a 45° forman el plano de tierra que hace que la antena reciba igual en todas las direcciones.",
+  alturaAntenaM: 4.47,               // altura de la antena sobre el suelo (m). null = "Por medir"
+  alturaDetalle: "sobre una estructura de madera",
+  montaje: "La antena ground-plane se ensambló y se instaló sobre una estructura de madera, a 4,47 m del suelo, en un punto " +
+           "despejado donde ningún obstáculo bloquea ni interfiere la señal. Desde allí, el cable coaxial RG58 llega hasta la " +
+           "ESP32 (Heltec LoRa32 V3), alojada en un gabinete diseñado a medida que la protege de golpes y facilita la instalación.",
 };
 // ===============================================================
 
-import { initWorld, shapeBurst, shapeSatellite, shapeAntenna, shapeEarth, shapeMap } from "./world.js?v=8";
+import { initWorld, shapeBurst, shapeSatellite, shapeAntenna, shapeEarth, shapeMap } from "./world.js?v=9";
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -23,7 +23,7 @@ if (capture) document.documentElement.classList.add("captura");
 
 // ---------- Figuras: 0 señal · 1 satélite · 2 antena · 3 Tierra · 4 globo+pin · 5 cadena · 6 carcasa · 7 terreno ----------
 let extra = {};
-try { extra = await import("./shapes-extra.js?v=8"); } catch (e) { console.warn("shapes-extra.js no disponible, uso figuras base", e); }
+try { extra = await import("./shapes-extra.js?v=9"); } catch (e) { console.warn("shapes-extra.js no disponible, uso figuras base", e); }
 const SH = [shapeBurst, shapeSatellite, shapeAntenna, shapeEarth,
   extra.shapeGlobePin || shapeEarth, extra.shapeChain || shapeSatellite, extra.shapeCase || shapeAntenna, shapeMap];
 
@@ -48,7 +48,7 @@ const LAYERS = [
       { shape: 3, frame: F.izq },                                    // resultados: la Tierra y su órbita
   ] },
   { id: "mapa", name: "Mapa", shape: 7, frame: F.mapa },
-  { id: "link", name: "Link", shape: 3, frame: F.izq },
+  { id: "link", name: "En vivo", shape: 3, frame: { x: 0.62, y: 0.04, s: 0.78, free: 0.48, tilt: 0.16, spin: 0.12 } },
 ];
 const MONTAJE = 3;
 
@@ -102,6 +102,10 @@ function showLayer(i, instant) {
 }
 function onShown(i) {
   if (LAYERS[i].id === "mapa") initMap();
+  if (LAYERS[i].id === "link") {
+    const f = $("#live-frame");
+    if (!f.src) { f.src = CONFIG.stationUrl; f.addEventListener("load", () => $("#live-loading")?.remove(), { once: true }); }
+  }
   if (LAYERS[i].id === "inicio") $$("[data-count]", sections[i]).forEach(countUp);
 }
 function renderStep() {
@@ -197,7 +201,7 @@ $$("[data-open3d]").forEach((b) => b.addEventListener("click", async () => {
   modal.showModal();
   if (viewer) return;
   try {
-    const { initCaseViewer } = await import("./case-viewer.js?v=8");
+    const { initCaseViewer } = await import("./case-viewer.js?v=9");
     viewer = initCaseViewer($("#case-canvas"), { onReady: () => $("#viewer-loading")?.remove() });
     $("#explode").addEventListener("input", (e) => viewer.setExplode(+e.target.value));
     $$(".viewer-btns button").forEach((x) => x.addEventListener("click", () => {
@@ -222,7 +226,7 @@ function initMap() {
   const photo = (img) => L.divIcon({ className: "", html: `<div class="pin-photo" style="background-image:url('${img}')"></div>`, iconSize: [46, 46], iconAnchor: [23, 52] });
   L.marker(home, { icon: pin, title: "DeepSky_Station" }).addTo(map).bindPopup(`<div class="popup"><img src="assets/img/antena_estacion.jpg" alt="Antena de la estación"><b>DeepSky_Station</b>Nemocón · ${CONFIG.lat.toFixed(3)}, ${CONFIG.lon.toFixed(3)}<br>2579 m s. n. m. · QTH FJ35bb</div>`);
   L.marker([CONFIG.lat + 0.0012, CONFIG.lon - 0.0016], { icon: photo("assets/img/antena_estacion.jpg") }).addTo(map).bindPopup(`<div class="popup"><img src="assets/img/antena_estacion.jpg" alt="Antena ground-plane"><b>La antena</b>Ground-plane HYS 433 MHz, 3 dBi, 4 radiales a 45°.</div>`);
-  L.marker([CONFIG.lat - 0.0012, CONFIG.lon + 0.0017], { icon: photo("assets/img/render_estuche.png") }).addTo(map).bindPopup(`<div class="popup"><img src="assets/img/render_estuche.png" alt="Render de la carcasa"><b>La carcasa</b>Heltec LoRa32 V3 en la carcasa de 75 × 75 mm.</div>`);
+  L.marker([CONFIG.lat - 0.0012, CONFIG.lon + 0.0017], { icon: photo("assets/img/render_estuche.png") }).addTo(map).bindPopup(`<div class="popup"><img src="assets/img/render_estuche.png" alt="Render del gabinete"><b>El gabinete</b>Heltec LoRa32 V3 en el gabinete de 75 × 75 mm.</div>`);
   const record = L.circle(home, { radius: CONFIG.recordKm * 1000, color: "#ff8a2a", weight: 2, fillColor: "#ff8a2a", fillOpacity: 0.06, dashArray: "6 8" }).addTo(map).bindTooltip(`Récord: ${fmt(CONFIG.recordKm, 1)} km`, { sticky: true });
   const toggle = (which) => {
     $$(".map-tools [data-layer]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.layer === which)));

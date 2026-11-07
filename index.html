@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Geist:wght@300;400;500;600&family=Geist+Mono:wght@400;500&display=swap">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
-<link rel="stylesheet" href="css/style.css?v=8">
+<link rel="stylesheet" href="css/style.css?v=9">
 <script type="importmap">
 { "imports": {
   "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
@@ -32,7 +32,7 @@
     <a href="#arquitectura" data-go="2">Arquitectura</a>
     <a href="#montaje" data-go="3">Montaje</a>
     <a href="#mapa" data-go="4">Mapa</a>
-    <a href="#link" data-go="5">Link</a>
+    <a href="#link" data-go="5">En vivo</a>
   </nav>
   <a class="cta" id="cta-top" href="#" target="_blank" rel="noopener">Ver en TinyGS <span class="cta-dot" aria-hidden="true">→</span></a>
 </header>
@@ -45,7 +45,7 @@
     <li><button data-go="2"><span class="mono">03</span><em>Arquitectura</em></button></li>
     <li><button data-go="3"><span class="mono">04</span><em>Montaje</em></button></li>
     <li><button data-go="4"><span class="mono">05</span><em>Mapa</em></button></li>
-    <li><button data-go="5"><span class="mono">06</span><em>Link</em></button></li>
+    <li><button data-go="5"><span class="mono">06</span><em>En vivo</em></button></li>
   </ol>
 </nav>
 
@@ -72,7 +72,11 @@
         <div><dt>telemetría decodificada</dt><dd class="mono" data-count="298">298</dd></div>
         <div><dt>km de récord</dt><dd class="mono" data-count="3238.9" data-dec="1">3.238,9</dd></div>
       </dl>
-      <p class="asof mono">Datos de app.tinygs.com · 6 nov 2026</p>
+      <p class="asof mono">Último registro: 6 nov 2026 · <button class="linklike" data-go="5">ver datos en vivo →</button></p>
+      <div class="team" aria-label="Integrantes">
+        <p class="mono team-h">Integrantes</p>
+        <ul><li>Juan Sebastián Muñoz</li><li>Ángel Gordillo</li><li>Sergio Contreras</li></ul>
+      </div>
     </div>
   </section>
 
@@ -102,12 +106,12 @@
       <ol class="chain">
         <li><span class="k mono">RF</span><div><h3>Satélite</h3><p>Tianqi, SD-1, SNUGLITE, Polytech… en LoRa y FSK, 400–437 MHz.</p></div></li>
         <li><span class="k mono">3 dBi</span><div><h3>Antena ground-plane</h3><p>HYS 433 MHz omnidireccional: varilla de ¼ de onda y 4 radiales.</p></div></li>
-        <li><span class="k mono">50 Ω</span><div><h3>Cable</h3><p>RG58 de 3 m + pigtail u.FL → SMA fijado en la carcasa.</p></div></li>
+        <li><span class="k mono">50 Ω</span><div><h3>Cable</h3><p>RG58 de 3 m + pigtail u.FL → SMA fijado en el gabinete.</p></div></li>
         <li><span class="k mono">SX1262</span><div><h3>Radio LoRa</h3><p>Escucha el satélite que indica el servidor; mide RSSI, SNR y Doppler.</p></div></li>
         <li><span class="k mono">ESP32-S3</span><div><h3>Heltec LoRa32 V3</h3><p>Firmware TinyGS, OLED, panel web local y WiFi 2,4 GHz.</p></div></li>
         <li><span class="k mono">MQTT</span><div><h3>Red TinyGS</h3><p>mqtt.tinygs.com:8883 (TLS): confirma y publica cada paquete.</p></div></li>
       </ol>
-      <button class="open3d" data-open3d>Ver la carcasa en 3D <span class="cta-dot" aria-hidden="true">↗</span></button>
+      <button class="open3d" data-open3d>Ver el gabinete en 3D <span class="cta-dot" aria-hidden="true">↗</span></button>
     </div>
   </section>
 
@@ -137,10 +141,10 @@
         </article>
         <article class="step" data-step="2">
           <p class="when mono">Paso 3 · Diseño</p>
-          <h3>Carcasa en SolidWorks</h3>
-          <p>Modelada alrededor del modelo 3D oficial de la Heltec V3 con sus regletas de pines, verificada sin interferencias y generada desde un script paramétrico.</p>
-          <figure><img src="assets/img/render_despiece.png" alt="Despiece de la carcasa: concha trasera, placa Heltec con regletas y tapa frontal" loading="lazy" width="1600" height="1200"></figure>
-          <button class="open3d small" data-open3d>Girarla en 3D <span class="cta-dot" aria-hidden="true">↗</span></button>
+          <h3>Gabinete en SolidWorks</h3>
+          <p>Modelado alrededor del modelo 3D oficial de la Heltec V3 con sus regletas de pines, verificado sin interferencias y generado desde un script paramétrico.</p>
+          <figure><img src="assets/img/render_despiece.png" alt="Despiece del gabinete: concha trasera, placa Heltec con regletas y tapa frontal" loading="lazy" width="1600" height="1200"></figure>
+          <button class="open3d small" data-open3d>Girarlo en 3D <span class="cta-dot" aria-hidden="true">↗</span></button>
         </article>
         <article class="step" data-step="3">
           <p class="when mono">Paso 4 · Antena</p>
@@ -180,10 +184,14 @@
 
   <!-- 06 · LINK -->
   <section class="layer" id="link" data-side="left" aria-labelledby="t-link">
-    <div class="glass panel">
+    <div class="glass panel wide">
       <p class="num mono">06 · En vivo</p>
-      <h2 id="t-link">Síguela en vivo</h2>
-      <p class="sub">Estado, satélite que está escuchando, paquetes y mapa en tiempo real en la consola pública de TinyGS.</p>
+      <h2 id="t-link">La estación, en tiempo real</h2>
+      <p class="sub">Consola pública de TinyGS: estado, satélite que está escuchando, paquetes recibidos y seguimiento en vivo. Estos datos se actualizan solos.</p>
+      <div class="live-wrap">
+        <iframe id="live-frame" title="Consola en vivo de DeepSky_Station en TinyGS" loading="lazy" referrerpolicy="no-referrer"></iframe>
+        <p class="live-loading mono" id="live-loading">Conectando con TinyGS…</p>
+      </div>
       <div class="linkrow">
         <div class="qr" id="qr" aria-label="Código QR del link de la estación"></div>
         <div class="linkcol">
@@ -196,14 +204,14 @@
   </section>
 </main>
 
-<!-- Visor 3D de la carcasa -->
+<!-- Visor 3D del gabinete -->
 <dialog id="viewer-modal" aria-labelledby="t-3d">
   <div class="modal-head">
-    <h2 id="t-3d">Carcasa · 75 × 75 × 20,4 mm</h2>
+    <h2 id="t-3d">Gabinete · 75 × 75 × 20,4 mm</h2>
     <button class="close" id="close3d" aria-label="Cerrar visor 3D">✕</button>
   </div>
   <div class="viewer">
-    <canvas id="case-canvas" aria-label="Modelo 3D de la carcasa con la placa y la antena; arrastra para girar"></canvas>
+    <canvas id="case-canvas" aria-label="Modelo 3D del gabinete con la placa y la antena; arrastra para girar"></canvas>
     <p class="viewer-loading mono" id="viewer-loading">Cargando modelo 3D…</p>
   </div>
   <div class="modal-tools">
@@ -215,6 +223,6 @@
 
 <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
-<script type="module" src="js/app.js?v=8"></script>
+<script type="module" src="js/app.js?v=9"></script>
 </body>
 </html>
